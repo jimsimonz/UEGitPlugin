@@ -1,4 +1,5 @@
-﻿#include "GitSourceControlChangelistState.h"
+#if ENGINE_MAJOR_VERSION == 5
+#include "GitSourceControlChangelistState.h"
 
 #define LOCTEXT_NAMESPACE "GitSourceControl.ChangelistState"
 
@@ -72,3 +73,4 @@ FSourceControlChangelistRef FGitSourceControlChangelistState::GetChangelist() co
 }
 
 #undef LOCTEXT_NAMESPACE
+#endif

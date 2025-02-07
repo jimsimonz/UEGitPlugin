@@ -34,7 +34,11 @@
 #include "PackageTools.h"
 #include "FileHelpers.h"
 #include "Misc/MessageDialog.h"
+
+#include "Runtime/Launch/Resources/Version.h"
+#if ENGINE_MAJOR_VERSION == 5 
 #include "UObject/ObjectSaveContext.h"
+#endif
 
 #include "Async/Async.h"
 #include "UObject/Linker.h"
@@ -1631,6 +1635,7 @@ FString GetFullPathFromGitStatus(const FString& Result, const FString& InReposit
 	return File;
 }
 
+#if ENGINE_MAJOR_VERSION == 5
 bool UpdateChangelistStateByCommand()
 {
 	// TODO: This is a temporary solution.
@@ -1684,6 +1689,7 @@ bool UpdateChangelistStateByCommand()
 	}
 	return true;
 }
+#endif
 	
 // Run a batch of Git "status" command to update status of given files and/or directories.
 bool RunUpdateStatus(const FString& InPathToGitBinary, const FString& InRepositoryRoot, const bool InUsingLfsLocking, const TArray<FString>& InFiles,
@@ -1715,14 +1721,17 @@ bool RunUpdateStatus(const FString& InPathToGitBinary, const FString& InReposito
 	{
 		ParseStatusResults(InPathToGitBinary, InRepositoryRoot, InUsingLfsLocking, RepoFiles, ResultsMap, OutStates);
 	}
-	
+
+#if ENGINE_MAJOR_VERSION == 5
 	UpdateChangelistStateByCommand();
+#endif
 
 	CheckRemote(InPathToGitBinary, InRepositoryRoot, RepoFiles, OutErrorMessages, OutStates);
 
 	return bResult;
 }
 
+#if ENGINE_MAJOR_VERSION == 5
 void UpdateFileStagingOnSaved(const FString& Filename, UPackage* Pkg, FObjectPostSaveContext ObjectSaveContext)
 {
 	UpdateFileStagingOnSavedInternal(Filename);
@@ -1750,6 +1759,7 @@ bool UpdateFileStagingOnSavedInternal(const FString& Filename)
 	
 	return bResult;
 }
+#endif
 	
 void UpdateStateOnAssetRename(const FAssetData& InAssetData, const FString& InOldName)
 {
