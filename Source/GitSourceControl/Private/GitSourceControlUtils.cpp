@@ -170,7 +170,11 @@ namespace GitSourceControlUtils
 				}
 			}
 		}
+#if ENGINE_MAJOR_VERSION >= 5
 		if (!PackageNotIncludedInGit.IsEmpty())
+#else
+		if (PackageNotIncludedInGit.Num() > 0)
+#endif
 		{
 			for (const FString& ToRemoveFile : PackageNotIncludedInGit)
 			{
