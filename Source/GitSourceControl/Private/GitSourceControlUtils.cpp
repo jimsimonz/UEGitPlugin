@@ -1770,8 +1770,12 @@ void UpdateStateOnAssetRename(const FAssetData& InAssetData, const FString& InOl
 		return ;
 	}
 	TSharedRef<FGitSourceControlState, ESPMode::ThreadSafe> State = Provider.GetStateInternal(InOldName);	
-	
+
+#if ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 1
 	State->LocalFilename = InAssetData.GetObjectPathString();
+#else
+	State->LocalFilename = InAssetData.ObjectPath.ToString();
+#endif
 }
 
 // Run a Git `cat-file --filters` command to dump the binary content of a revision into a file.
