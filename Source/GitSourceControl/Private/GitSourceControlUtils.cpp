@@ -1851,65 +1851,20 @@ bool RunDumpToFile(const FString& InPathToGitBinary, const FString& InRepository
 		FPlatformProcess::Sleep(0.01f);
 
 		TArray<uint8> BinaryFileContent;
-		bool bRemovedLFSMessage = false;
-		while (FPlatformProcess::IsProcRunning(ProcessHandle))
+		bool bShouldContinue = true;
+		while (FPlatformProcess::IsProcRunning(ProcessHandle) || bShouldContinue)
 		{
 			TArray<uint8> BinaryData;
-			FPlatformProcess::ReadPipeToArray(PipeRead, BinaryData);
+			bShouldContinue = FPlatformProcess::ReadPipeToArray(PipeRead, BinaryData);
 			if (BinaryData.Num() > 0)
 			{
-				if (GitSourceControl.AccessSettings().IsUsingGitLfsLocking())
-				{
-					// @todo: this is hacky!
-					if (BinaryData[0] == 68) // Check for D in "Downloading"
-					{
-						if (BinaryData[BinaryData.Num() - 1] == 10) // Check for newline
-						{
-							BinaryData.Reset();
-							bRemovedLFSMessage = true;
-						}
-					}
-					else
-					{
-						BinaryFileContent.Append(MoveTemp(BinaryData));
-					}
-				}
-				else
-				{
-					BinaryFileContent.Append(MoveTemp(BinaryData));
-				}
-			}
-		}
-		TArray<uint8> BinaryData;
-		FPlatformProcess::ReadPipeToArray(PipeRead, BinaryData);
-		if (BinaryData.Num() > 0)
-		{
-			if (GitSourceControl.AccessSettings().IsUsingGitLfsLocking())
-			{
 				// @todo: this is hacky!
-				if (!bRemovedLFSMessage && BinaryData[0] == 68) // Check for D in "Downloading"
+				bool bIsLFSMessage = BinaryData[0] == 68 // Check for D in "Downloading"
+									&& BinaryData.Last() == 10; // Check for new line
+				if (GitSourceControl.AccessSettings().IsUsingGitLfsLocking() && bIsLFSMessage)
 				{
-					int32 NewLineIndex = 0;
-					for (int32 Index = 0; Index < BinaryData.Num(); Index++)
-					{
-						if (BinaryData[Index] == 10) // Check for newline
-						{
-							NewLineIndex = Index;
-							break;
-						}
-					}
-					if (NewLineIndex > 0)
-					{
-						BinaryData.RemoveAt(0, NewLineIndex + 1);
-					}
+					continue;
 				}
-				else
-				{
-					BinaryFileContent.Append(MoveTemp(BinaryData));
-				}
-			}
-			else
-			{
 				BinaryFileContent.Append(MoveTemp(BinaryData));
 			}
 		}
