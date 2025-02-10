@@ -1454,8 +1454,12 @@ void CheckRemote(const FString& InPathToGitBinary, const FString& InRepositoryRo
 
 	TArray<FString> ErrorMessages;
 
-	TArray<FString> Results;
+	TArray<FString> LogResults;
+	TArray<FString> DiffResults;
+	TArray<FString> Intersection;
+
 	TMap<FString, FString> NewerFiles;
+
 
 	//const TArray<FString>& RelativeFiles = RelativeFilenames(Files, InRepositoryRoot);
 	// Get the full remote status of the Content folder, since it's the only lockable folder we track in editor. 
@@ -1478,10 +1482,27 @@ void CheckRemote(const FString& InPathToGitBinary, const FString& InRepositoryRo
 		// .. means commits in the right that are not in the left
 		ParametersLog[2] = FString::Printf(TEXT("..%s"), *Branch);
 
-		const bool bResultDiff = RunCommand(TEXT("log"), InPathToGitBinary, InRepositoryRoot, ParametersLog, FilesToDiff, Results, ErrorMessages);
-		if (bResultDiff)
+		const bool bResultLog = RunCommand(TEXT("log"), InPathToGitBinary, InRepositoryRoot, ParametersLog, FilesToDiff, LogResults, ErrorMessages);
+		if (bResultLog)
 		{
-			for (const FString& NewerFileName : Results)
+			// Status Branches may not be initialized because they're not in use by the project. They can also be not initilaized in some other quirky circumstances
+			// eg. When running multi client / dedicated server in editor without running them under the same process, those game instances will run as an editor instance
+			// which means editor plugins are enabled and running, but they don't run UnrealEdEngine, so the status branches are not initialized.
+			if (StatusBranches.Num() > 0)
+			{
+				// Check if the files state in the branch in which is changed is actually different from status branch
+				// This opens files for edit if they were modified in another branch but have since been reverted back to state in status.
+				TArray<FString> DiffParametersLog{ TEXT("--pretty="), TEXT("--name-only"), FString::Printf(TEXT("%s..%s"), *StatusBranches[0], *Branch), TEXT(""), TEXT("--") };
+				const bool bResultDiff = RunCommand(TEXT("diff"), InPathToGitBinary, InRepositoryRoot, DiffParametersLog, FilesToDiff, DiffResults, ErrorMessages);
+				// Get the intersection of the 2 containers
+				Intersection = DiffResults.FilterByPredicate([&LogResults](const FString& ChangedFile) { return LogResults.Contains(ChangedFile); });
+			}
+			else
+			{
+				Intersection = LogResults;
+			}
+
+			for (const FString& NewerFileName : Intersection)
 			{
 				// Don't care about mergeable files (.collection, .ini, .uproject, etc)
 				if (!IsFileLFSLockable(NewerFileName))
@@ -1501,7 +1522,9 @@ void CheckRemote(const FString& InPathToGitBinary, const FString& InRepositoryRo
 				}
 			}
 		}
-		Results.Reset();
+		LogResults.Reset();
+		DiffResults.Reset();
+		Intersection.Reset();
 	}
 
 	for (const auto& NewFile : NewerFiles)
