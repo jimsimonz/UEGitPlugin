@@ -1,6 +1,6 @@
-#if ENGINE_MAJOR_VERSION == 5
 #include "GitSourceControlChangelistState.h"
 
+#if ENGINE_MAJOR_VERSION == 5
 #define LOCTEXT_NAMESPACE "GitSourceControl.ChangelistState"
 
 FName FGitSourceControlChangelistState::GetIconName() const
