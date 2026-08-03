@@ -171,9 +171,9 @@ void FGitSourceControlProvider::CheckRepositoryStatus()
 					UE_LOG(LogSourceControl, Log, TEXT("Git LFS Locking is enabled."));
 				}
 			}
-			const TArray<FString> ProjectDirs{FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir()),
-											  FPaths::ConvertRelativePathToFull(FPaths::ProjectConfigDir()),
-											  FPaths::ConvertRelativePathToFull(FPaths::GetProjectFilePath())};
+
+			const TArray<FString> ProjectDirs = GitSourceControlUtils::GetSourceControlledAssetPaths();
+
 			TArray<FString> StatusErrorMessages;
 			if (!GitSourceControlUtils::RunUpdateStatus(PathToGitBinary, PathToRepositoryRoot, bUsingGitLfsLocking, ProjectDirs, StatusErrorMessages, States))
 			{
@@ -574,6 +574,17 @@ bool FGitSourceControlProvider::UsesFileRevisions() const
 	return true;
 }
 
+#if ENGINE_MINOR_VERSION >= 8
+TOptional<bool> FGitSourceControlProvider::HasChangesToSync() const
+{
+	return TOptional<bool>();
+}
+
+TOptional<bool> FGitSourceControlProvider::HasChangesToCheckIn() const
+{
+	return TOptional<bool>();
+}
+#else
 TOptional<bool> FGitSourceControlProvider::IsAtLatestRevision() const
 {
 	return TOptional<bool>();
@@ -583,6 +594,7 @@ TOptional<int> FGitSourceControlProvider::GetNumLocalChanges() const
 {
 	return TOptional<int>();
 }
+#endif
 #endif
 
 #if ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 2
@@ -597,6 +609,13 @@ bool FGitSourceControlProvider::UsesUncontrolledChangelists() const
 }
 
 bool FGitSourceControlProvider::UsesSnapshots() const
+{
+	return false;
+}
+#endif
+
+#if ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 8
+bool FGitSourceControlProvider::UsesSoftRevertOnDelete() const
 {
 	return false;
 }
@@ -880,6 +899,20 @@ void FGitSourceControlProvider::RegisterStateBranches(const TArray<FString>& Bra
 	StatusBranchNamePatternsInternal = BranchNames;
 }
 
+#if ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 7
+bool FGitSourceControlProvider::GetStateBranchAtIndex(int32 BranchIndex, FString& OutBranchName) const
+{
+	auto StatusBranchNames = GetStatusBranchNames();
+
+	if (StatusBranchNames.IsValidIndex(BranchIndex))
+	{
+		OutBranchName = StatusBranchNames[BranchIndex];
+		return true;
+	}
+	return false;
+}
+#endif
+
 int32 FGitSourceControlProvider::GetStateBranchIndex(const FString& StateBranchName) const
 {
 	// How do state branches indices work?
@@ -914,7 +947,7 @@ int32 FGitSourceControlProvider::GetStateBranchIndex(const FString& StateBranchN
 TArray<FString> FGitSourceControlProvider::GetStatusBranchNames() const
 {
 	TArray<FString> StatusBranches;
-	if(PathToGitBinary.IsEmpty() || PathToRepositoryRoot.IsEmpty())
+	if (PathToGitBinary.IsEmpty() || PathToRepositoryRoot.IsEmpty())
 		return StatusBranches;
 	
 	for (int i = 0; i < StatusBranchNamePatternsInternal.Num(); i++)
